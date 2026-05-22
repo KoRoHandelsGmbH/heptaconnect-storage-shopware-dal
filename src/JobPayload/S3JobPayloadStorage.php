@@ -57,7 +57,7 @@ final class S3JobPayloadStorage implements JobPayloadStorageInterface
     public function keyFor(string $payloadId): string
     {
         if (\strlen($payloadId) < 4) {
-            throw new \InvalidArgumentException('Payload id must contain at least 4 characters.');
+            throw new \InvalidArgumentException('Payload ID must be a hex string with at least 4 characters for directory sharding.');
         }
 
         $path = \sprintf(

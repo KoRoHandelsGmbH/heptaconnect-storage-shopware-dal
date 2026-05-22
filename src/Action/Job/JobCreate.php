@@ -140,7 +140,9 @@ final class JobCreate implements JobCreateActionInterface
             }
 
             // Upload payloads to object storage before inserting DB rows.
-            // If upload fails, throw CreateException. If DB insert fails after upload, uploaded objects may be orphaned.
+            // If upload fails, throw CreateException to prevent a dangling DB reference.
+            // If DB insert fails after upload, uploaded objects may be orphaned and should be cleaned up
+            // via a separate garbage-collection process, since DB and object storage are not atomically transactional.
             try {
                 foreach ($payloadUploads as $upload) {
                     $this->jobPayloadStorage->put($upload['id'], $upload['data']);
