@@ -10,6 +10,7 @@ use Heptacom\HeptaConnect\Storage\Base\Action\Job\Get\JobGetCriteria;
 use Heptacom\HeptaConnect\Storage\Base\Action\Job\Get\JobGetResult;
 use Heptacom\HeptaConnect\Storage\Base\Contract\Action\Job\JobGetActionInterface;
 use Heptacom\HeptaConnect\Storage\Base\Exception\UnsupportedStorageKeyException;
+use Heptacom\HeptaConnect\Storage\ShopwareDal\JobPayload\JobPayloadStorageInterface;
 use Heptacom\HeptaConnect\Storage\ShopwareDal\StorageKey\JobStorageKey;
 use Heptacom\HeptaConnect\Storage\ShopwareDal\StorageKey\PortalNodeStorageKey;
 use Heptacom\HeptaConnect\Storage\ShopwareDal\Support\Id;
@@ -21,26 +22,22 @@ final class JobGet implements JobGetActionInterface
 {
     public const FETCH_QUERY = '809ecd5e-291f-417c-9c76-003c7ead65e9';
 
-    /**
-     * @deprecated TODO remove serialized format
-     */
-    private const FORMAT_SERIALIZED = 'serialized';
-
-    /**
-     * @deprecated TODO remove serialized format
-     */
-    private const FORMAT_SERIALIZED_GZPRESS = 'serialized+gzpress';
-
     private ?QueryBuilder $builder = null;
 
     private QueryFactory $queryFactory;
 
     private QueryIterator $iterator;
 
-    public function __construct(QueryFactory $queryFactory, QueryIterator $iterator)
-    {
+    private JobPayloadStorageInterface $jobPayloadStorage;
+
+    public function __construct(
+        QueryFactory $queryFactory,
+        QueryIterator $iterator,
+        JobPayloadStorageInterface $jobPayloadStorage
+    ) {
         $this->queryFactory = $queryFactory;
         $this->iterator = $iterator;
+        $this->jobPayloadStorage = $jobPayloadStorage;
     }
 
     public function get(JobGetCriteria $criteria): iterable
@@ -94,20 +91,13 @@ final class JobGet implements JobGetActionInterface
                 'portal_node',
                 $builder->expr()->eq('portal_node.id', 'job.portal_node_id')
             )
-            ->leftJoin(
-                'job',
-                'heptaconnect_job_payload',
-                'job_payload',
-                $builder->expr()->eq('job_payload.id', 'job.payload_id')
-            )
             ->select([
                 'job.id job_id',
                 'job.external_id job_external_id',
                 'job_type.type job_type_type',
                 'entity_type.type job_entity_type',
                 'portal_node.id portal_node_id',
-                'job_payload.payload job_payload_payload',
-                'job_payload.format job_payload_format',
+                'job.payload_id job_payload_id',
             ])
             ->addOrderBy('job.id')
             ->where($builder->expr()->in('job.id', ':ids'));
@@ -133,25 +123,23 @@ final class JobGet implements JobGetActionInterface
                     (string) $row['job_entity_type'],
                     (string) $row['job_external_id']
                 ),
-                $this->unserializePayload($row['job_payload_payload'], (string) $row['job_payload_format'])
+                $this->loadPayload($row['job_payload_id'])
             )
         );
     }
 
-    private function unserializePayload($payload, string $format): ?array
+    private function loadPayload($payloadId): ?array
     {
-        if (!\is_string($payload)) {
+        if (!\is_string($payloadId) || $payloadId === '') {
             return null;
         }
 
-        if ($format === self::FORMAT_SERIALIZED) {
-            return (array) \unserialize($payload);
+        $item = $this->jobPayloadStorage->get(Id::toHex($payloadId));
+
+        if ($item === null) {
+            return null;
         }
 
-        if ($format === self::FORMAT_SERIALIZED_GZPRESS) {
-            return (array) \unserialize(\gzuncompress($payload));
-        }
-
-        return (array) $payload;
+        return (array) \unserialize(\gzuncompress($item->getPayload()));
     }
 }

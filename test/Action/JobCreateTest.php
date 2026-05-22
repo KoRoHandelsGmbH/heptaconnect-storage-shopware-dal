@@ -19,6 +19,8 @@ use Heptacom\HeptaConnect\Storage\ShopwareDal\Test\TestCase;
  * @covers \Heptacom\HeptaConnect\Storage\ShopwareDal\Action\Job\JobCreate
  * @covers \Heptacom\HeptaConnect\Storage\ShopwareDal\Bridge\StorageFacade
  * @covers \Heptacom\HeptaConnect\Storage\ShopwareDal\EntityTypeAccessor
+ * @covers \Heptacom\HeptaConnect\Storage\ShopwareDal\JobPayload\InMemoryJobPayloadStorage
+ * @covers \Heptacom\HeptaConnect\Storage\ShopwareDal\JobPayload\JobPayloadStorageItem
  * @covers \Heptacom\HeptaConnect\Storage\ShopwareDal\JobTypeAccessor
  * @covers \Heptacom\HeptaConnect\Storage\ShopwareDal\PortalNodeAliasAccessor
  * @covers \Heptacom\HeptaConnect\Storage\ShopwareDal\StorageKeyGenerator
@@ -69,6 +71,6 @@ class JobCreateTest extends TestCase
         $count = (int) $connection->executeQuery('SELECT count(1) FROM `heptaconnect_job`')->fetchColumn();
         static::assertSame(3, $count);
         $count = (int) $connection->executeQuery('SELECT count(1) FROM `heptaconnect_job_payload`')->fetchColumn();
-        static::assertSame(1, $count);
+        static::assertSame(0, $count);
     }
 }

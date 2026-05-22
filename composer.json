@@ -27,6 +27,7 @@
         "php": ">=7.4",
         "ext-json": "*",
         "ext-zlib": "*",
+        "aws/aws-sdk-php": "^3.0",
         "bentools/iterable-functions": "^1.4",
         "doctrine/dbal": ">=2.11",
         "heptacom/heptaconnect-dataset-base": "^0.9.4",

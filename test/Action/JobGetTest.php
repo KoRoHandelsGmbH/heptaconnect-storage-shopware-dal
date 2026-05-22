@@ -8,6 +8,7 @@ use Doctrine\DBAL\Types\Types;
 use Heptacom\HeptaConnect\Storage\Base\Action\Job\Get\JobGetCriteria;
 use Heptacom\HeptaConnect\Storage\Base\JobKeyCollection;
 use Heptacom\HeptaConnect\Storage\ShopwareDal\Bridge\StorageFacade;
+use Heptacom\HeptaConnect\Storage\ShopwareDal\JobPayload\InMemoryJobPayloadStorage;
 use Heptacom\HeptaConnect\Storage\ShopwareDal\StorageKey\JobStorageKey;
 use Heptacom\HeptaConnect\Storage\ShopwareDal\Support\DateTime;
 use Heptacom\HeptaConnect\Storage\ShopwareDal\Support\Enum\JobStateEnum;
@@ -18,6 +19,8 @@ use Heptacom\HeptaConnect\Storage\ShopwareDal\Test\TestCase;
 /**
  * @covers \Heptacom\HeptaConnect\Storage\ShopwareDal\Action\Job\JobGet
  * @covers \Heptacom\HeptaConnect\Storage\ShopwareDal\Bridge\StorageFacade
+ * @covers \Heptacom\HeptaConnect\Storage\ShopwareDal\JobPayload\InMemoryJobPayloadStorage
+ * @covers \Heptacom\HeptaConnect\Storage\ShopwareDal\JobPayload\JobPayloadStorageItem
  * @covers \Heptacom\HeptaConnect\Storage\ShopwareDal\StorageKey\AbstractStorageKey
  * @covers \Heptacom\HeptaConnect\Storage\ShopwareDal\Support\DateTime
  * @covers \Heptacom\HeptaConnect\Storage\ShopwareDal\Support\Enum\JobStateEnum
@@ -36,6 +39,8 @@ class JobGetTest extends TestCase
 
     private const JOB = '4e836953e1eb4916b4410b9af2b9b2f9';
 
+    private InMemoryJobPayloadStorage $payloadStorage;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -46,6 +51,12 @@ class JobGetTest extends TestCase
         $portal = Id::toBinary(self::PORTAL);
         $job = Id::toBinary(self::JOB);
         $jobPayload = Id::randomBinary();
+        $jobPayloadHex = Id::toHex($jobPayload);
+
+        $this->payloadStorage = new InMemoryJobPayloadStorage();
+        $this->payloadStorage->put($jobPayloadHex, \gzcompress(\serialize([
+            'foo' => 'bar',
+        ])));
 
         $connection->insert('heptaconnect_entity_type', [
             'id' => $entityType,
@@ -63,17 +74,6 @@ class JobGetTest extends TestCase
             'class_name' => self::class,
             'created_at' => DateTime::nowToStorage(),
         ], ['id' => Types::BINARY]);
-        $connection->insert('heptaconnect_job_payload', [
-            'id' => $jobPayload,
-            'payload' => \gzcompress(\serialize([
-                'foo' => 'bar',
-            ])),
-            'format' => 'serialized+gzpress',
-            'created_at' => DateTime::nowToStorage(),
-        ], [
-            'id' => Types::BINARY,
-            'payload' => Types::BINARY,
-        ]);
         $connection->insert('heptaconnect_job', [
             'id' => $job,
             'external_id' => '123',
@@ -95,7 +95,7 @@ class JobGetTest extends TestCase
 
     public function testGet(): void
     {
-        $facade = new StorageFacade($this->getConnection());
+        $facade = new StorageFacade($this->getConnection(), $this->payloadStorage);
         $action = $facade->getJobGetAction();
         $criteria = new JobGetCriteria(new JobKeyCollection([new JobStorageKey(self::JOB)]));
         $count = 0;
