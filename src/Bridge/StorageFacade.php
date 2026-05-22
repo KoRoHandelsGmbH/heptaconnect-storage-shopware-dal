@@ -71,6 +71,8 @@ use Heptacom\HeptaConnect\Storage\ShopwareDal\Action\Job\JobFinishedList;
 use Heptacom\HeptaConnect\Storage\ShopwareDal\Action\Job\JobGet;
 use Heptacom\HeptaConnect\Storage\ShopwareDal\Action\Job\JobSchedule;
 use Heptacom\HeptaConnect\Storage\ShopwareDal\Action\Job\JobStart;
+use Heptacom\HeptaConnect\Storage\ShopwareDal\JobPayload\InMemoryJobPayloadStorage;
+use Heptacom\HeptaConnect\Storage\ShopwareDal\JobPayload\JobPayloadStorageInterface;
 use Heptacom\HeptaConnect\Storage\ShopwareDal\Action\PortalExtension\PortalExtensionActivate;
 use Heptacom\HeptaConnect\Storage\ShopwareDal\Action\PortalExtension\PortalExtensionDeactivate;
 use Heptacom\HeptaConnect\Storage\ShopwareDal\Action\PortalExtension\PortalExtensionFind;
@@ -132,9 +134,12 @@ class StorageFacade extends AbstractSingletonStorageFacade
 
     private ?QueryFactory $queryFactory = null;
 
-    public function __construct(Connection $connection)
+    private ?JobPayloadStorageInterface $jobPayloadStorage;
+
+    public function __construct(Connection $connection, ?JobPayloadStorageInterface $jobPayloadStorage = null)
     {
         $this->connection = $connection;
+        $this->jobPayloadStorage = $jobPayloadStorage;
     }
 
     protected function createFileReferenceGetRequestAction(): FileReferenceGetRequestActionInterface
@@ -211,7 +216,7 @@ class StorageFacade extends AbstractSingletonStorageFacade
             $this->getStorageKeyGenerator(),
             $this->getJobTypeAccessor(),
             $this->getEntityTypeAccessor(),
-            $this->getQueryFactory()
+            $this->getJobPayloadStorage()
         );
     }
 
@@ -232,7 +237,7 @@ class StorageFacade extends AbstractSingletonStorageFacade
 
     protected function createJobGetAction(): JobGetActionInterface
     {
-        return new JobGet($this->getQueryFactory(), $this->getQueryIterator());
+        return new JobGet($this->getQueryFactory(), $this->getQueryIterator(), $this->getJobPayloadStorage());
     }
 
     protected function createJobListFinishedAction(): JobListFinishedActionInterface
@@ -464,5 +469,10 @@ class StorageFacade extends AbstractSingletonStorageFacade
             [],
             500
         );
+    }
+
+    private function getJobPayloadStorage(): JobPayloadStorageInterface
+    {
+        return $this->jobPayloadStorage ??= new InMemoryJobPayloadStorage();
     }
 }
